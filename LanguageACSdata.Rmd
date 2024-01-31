@@ -1,0 +1,447 @@
+---
+title: "LanguageFinder"
+author: Catherine Brockway, PhD; UN CIFAL Honolulu; catherine.lee.brockway@gmail.com
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::readthedown: 
+    code_folding: hide    
+    code_download: true
+    css: "custom.css"
+   
+    
+---
+
+Find out which languages other than English are spoken in particular places.
+Translations and interpretation services are key tools to increase accessibility to information. Access to information is especially important in relation to:
+
+1) Disaster warnings and disaster response;
+2) Healthcare, especially treatment options and recovery instructions;
+3) Local government engagement;
+4) Environmental justice; 
+5) Workplace safety
+
+See how many people speak a particular language in different places.
+
+1) Understanding how speakers of a certain language are distributed across the U.S. can help organizations find collaborative partners in creating translations and interpretive services for that language.
+
+2) Organizations that serve particular language communities can use this information to identify key service areas.
+
+This project seeks to make data about languages spoken in the US accessible to decision-makers in social sector enterprises. Key variables for decision-makers include the detailed language spoken, ability to speak English, and potentially age, for organizations that serve specific age groups, e.g.: voting age population, K-12 children, seniors, etc. 
+
+# About the data
+
+The data comes from the [US Census Bureau](https://www.census.gov/) [American Community Survey](https://www.census.gov/programs-surveys/acs), 5-year estimates from 2017-2021. This is the most reliable and most recent data available on languages spoken at home in the US. This data is collected using the following questions:
+
+![Image of Language Spoken at Home question on the American Community Survey](language_600_q14.avif){width=50%}
+
+$~$
+
+The US Census Bureau reports 130 language categories, including 105 individual languages (e.g.: Spanish, Hawaiian) and 25 aggregated language categories (e.g. Other Malayo-Polynesian languages, Aleut languages. 
+
+Where age information is given, ages were divided into three categories: Youth (age 5-17), Working Age (18-64), and Senior (65-99). Data for individuals under age 5 and above age 99 are not provided by the US Census Bureau. 
+
+Where Ability to Speak English is given, this data is self-reported in part C of the question shown above.
+
+```{r env setup, include=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(kableExtra)
+library(reactable)
+# https://glin.github.io/reactable/articles/examples.html#basic-usage 
+library(scales)
+library(rmdformats)
+
+options(reactable.theme = reactableTheme(
+color = "hsl(100, 0%, 0%)",
+backgroundColor = "hsl(0, 0%, 100%)",
+borderColor = "hsl(233, 9%, 22%)",
+stripedColor = "hsl(240, 3%, 94%)",
+highlightColor = "hsl(95, 80%, 70%)",
+inputStyle = list(backgroundColor = "hsl(0, 0%, 100%)"),
+selectStyle = list(backgroundColor = "hsl(0, 0%, 100%)"),
+pageButtonHoverStyle = list(backgroundColor = "hsl(0, 0%, 100%)"),
+pageButtonActiveStyle = list(backgroundColor = "hsl(0, 0%, 100%)")
+))
+#set your census api key using instructions at https://walker-data.com/tidycensus/reference/census_api_key.html
+
+```
+
+
+```{r}
+nonEng <- read.csv("NonEnglishLanguages.csv")
+
+nonEng$ST_label <- as.factor(nonEng$ST_label)
+nonEng$ENG_label <- as.factor(nonEng$ENG_label)
+nonEng$ENG_label <- factor(nonEng$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng$LANP_label <- as.factor(nonEng$LANP_label)
+
+nonEng <- within(nonEng, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng$AgeGroup <- as.factor(nonEng$AgeGroup)
+nonEng$AgeGroup <- factor(nonEng$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+```
+
+
+```{r list of languages, eval=FALSE, include=FALSE}
+levels(nonEng$LANP_label)
+```
+
+# Most Common Languages Spoken at Home in the US
+
+Not all languages spoken in the US are represented in this data. The US Census Bureau reports language spoken at home for 130 languages and language groups. All languages and language groups reported by the Census Bureau are included in the table below. (See the sections on individual languages and aggregated languages for tables specific to these two categories.)
+
+```{r US Lang totals, include=FALSE}
+lang_totals_US <- nonEng %>%
+  count(LANP_label, wt = PWGTP)%>%
+  arrange(desc(n))
+
+```
+## List of languages spoken at home in the US with speaker totals
+
+The table below includes counts of all individuals aged 5-99 in the US who speak a language other than English at home. 
+
+You can search the table for a specific language, and the table can be sorted by language (alphabetically) or by speaker count. You can navigate to show more pages at the bottom of the table, and/or expand the table to show more rows. 
+```{r reactable US languages}
+reactable(
+lang_totals_US,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+columns = list(
+LANP_label = colDef(name = "Language"),
+n = colDef(name = "Number of Speakers")
+)
+)
+```
+
+## Chart of Top 20 most spoken languages in the US
+```{r}
+ lang_totals_US %>% 
+    arrange(desc(n)) %>%
+    slice(1:20) %>%
+    ggplot(., aes(x=n, y=reorder(LANP_label, n)))+
+              geom_bar(stat='identity')+
+              theme_minimal()+
+              labs(x = "Number of Speakers",
+                   y = "Language",
+                   title = "Top 20 Languages Spoken at Home other than English",
+                   subtitle = "Speakers age 5 and over in the US",
+                   caption = "ACS PUMS Microdata. US Census Bureau. 2017-2021.")+ 
+              scale_x_continuous(labels = label_comma())
+
+
+```
+
+## Languages Spoken at Home by State, Age Group, and Ability to Speak English
+
+The table below includes counts of all individuals aged 5-99 in the US who speak a language other than English at home, divided by State, Age Group, and Ability to Speak English. 
+
+Age Groups include Youth (ages 5-17), Working Age (18-64), and Seniors (65-99).
+
+Ability to Speak English is self-reported using the following categories: Very well, Well, Not well, and Not at all. 
+
+You can search the table for a specific language, and the table can be sorted by language (alphabetically) or by speaker count. You can navigate to show more pages at the bottom of the table, and/or expand the table to show more rows. Each row can be expanded to show more variables using the black arrow on the far left of the row. 
+```{r include=FALSE}
+lang_totals <- nonEng %>%
+  count(LANP_label, ENG_label, AgeGroup, ST_label, wt = PWGTP)%>%
+  arrange(desc(n))
+
+#write_csv(lang_totals, "LangAppData.csv")
+```
+
+```{r reactable all languages}
+reactable(
+lang_totals,
+groupBy = c("LANP_label", "ST_label", "AgeGroup"),
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+columns = list(
+LANP_label = colDef(name = "Language", filterable = TRUE),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+ST_label = colDef(name = "State", filterable = TRUE),
+n = colDef(name = "Number of Speakers", aggregate = "sum")
+)
+)
+```
+
+
+# Individual Languages Spoken at Home by Age Group and Ability to Speak English
+
+The US Census Bureau aggregates related languages together. This section looks at 105 individual languages reported by the US Census. The next section looks at aggregated language groups.
+
+```{r individual languages, include=FALSE}
+languages_indiv <- nonEng%>%
+  filter(!grepl('languages', LANP_label))
+
+lang_totals_indiv <- languages_indiv %>%
+  count(LANP_label, ENG_label, AgeGroup, ST_label, wt = PWGTP)%>%
+  arrange(desc(n))
+
+
+```
+
+```{r reactable individual languages}
+reactable(
+lang_totals_indiv,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+groupBy = c("LANP_label", "ST_label", "AgeGroup"),
+columns = list(
+LANP_label = colDef(name = "Language", filterable = TRUE),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+ST_label = colDef(name = "State", filterable = TRUE),
+n = colDef(name = "Number of Speakers")
+)
+)
+```
+
+
+
+
+
+
+
+
+# Grouped Language Categories Spoken at Home by Age Group and Ability to Speak English
+
+The US Census Bureau aggregates related languages together. This section looks at 25 aggregated language groups reported by the US Census. 
+
+```{r grouped languages category, include=FALSE}
+languages_categories <- nonEng%>%
+  filter(grepl('languages', LANP_label))
+
+lang_totals_other <- languages_categories %>%
+  count(LANP_label, ENG_label, AgeGroup, ST_label, wt = PWGTP)%>%
+  arrange(desc(n))
+
+
+```
+
+
+```{r reactable other languages}
+reactable(
+lang_totals_other,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+groupBy = c("LANP_label", "ST_label", "AgeGroup"),
+columns = list(
+LANP_label = colDef(name = "Language"),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+ST_label = colDef(name = "State", filterable = TRUE),
+n = colDef(name = "Number of Speakers")
+)
+)
+```
+
+```{r}
+ lang_totals_other %>% 
+    slice(1:20) %>%
+    ggplot(., aes(x=n, y=reorder(LANP_label, n)))+
+              geom_bar(stat='identity')+
+              theme_minimal()+
+              labs(x = "Number of Speakers",
+                   y = "Language",
+                   title = "Top 20 Grouped/Other Language Categories \nSpoken at Home",
+                   subtitle = "Speakers age 5 and over in the US",
+                   caption = "ACS PUMS Microdata. US Census Bureau. 2021.")+ 
+              scale_x_continuous(labels = label_comma())
+
+
+```
+
+
+# Hawai'i
+
+```{r}
+nonEng_HI <- read.csv("NonEnglishLanguagesHI.csv")
+
+#nonEng_HI$ST_label <- as.factor(nonEng_HI$ST_label)
+nonEng_HI$ENG_label <- as.factor(nonEng_HI$ENG_label)
+nonEng_HI$ENG_label <- factor(nonEng_HI$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng_HI$LANP_label <- as.factor(nonEng_HI$LANP_label)
+nonEng_HI$PUMA <- as.factor(nonEng_HI$PUMA)
+
+nonEng_HI <- within(nonEng_HI, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng_HI$AgeGroup <- as.factor(nonEng_HI$AgeGroup)
+nonEng_HI$AgeGroup <- factor(nonEng_HI$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+```
+
+
+```{r hawaii Lang totals, include=FALSE}
+lang_totals_HI <- nonEng_HI %>%
+  count(PUMA, LANP_label, ENG_label, AgeGroup, wt = PWGTP)%>%
+  arrange(desc(n))
+
+```
+
+
+```{r reactable hawaii languages}
+reactable(
+lang_totals_HI,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+groupBy = c("LANP_label", "PUMA", "AgeGroup"),
+columns = list(
+LANP_label = colDef(name = "Language"),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+#ST_label = colDef(name = "State", filterable = TRUE),
+n = colDef(name = "Number of Speakers", aggregate = "sum")
+)
+)
+```
+# Texas
+
+```{r}
+nonEng_TX <- read.csv("NonEnglishLanguagesTX.csv")
+
+#nonEng_HI$ST_label <- as.factor(nonEng_HI$ST_label)
+nonEng_TX$ENG_label <- as.factor(nonEng_TX$ENG_label)
+nonEng_TX$ENG_label <- factor(nonEng_TX$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng_TX$LANP_label <- as.factor(nonEng_TX$LANP_label)
+nonEng_TX$PUMA <- as.factor(nonEng_TX$PUMA)
+
+nonEng_TX <- within(nonEng_TX, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng_TX$AgeGroup <- as.factor(nonEng_TX$AgeGroup)
+nonEng_TX$AgeGroup <- factor(nonEng_TX$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+```
+
+```{r texas Lang totals, include=FALSE}
+lang_totals_TX <- nonEng_TX %>%
+  count(PUMA, LANP_label, ENG_label, AgeGroup, wt = PWGTP)%>%
+  arrange(desc(n))
+
+```
+
+```{r reactable texas languages}
+reactable(
+lang_totals_TX,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+groupBy = c("LANP_label", "PUMA", "AgeGroup"),
+columns = list(
+LANP_label = colDef(name = "Language"),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+#ST_label = colDef(name = "State", filterable = TRUE),
+n = colDef(name = "Number of Speakers", aggregate = "sum")
+)
+)
+```
+
+```{r detailed plot, eval=FALSE, include=FALSE, out.width='90%'}
+
+lang_totals_noSpan <- filter(lang_totals_US, LANP_label != "Spanish")
+
+ lang_totals_noSpan %>% 
+    arrange(desc(n)) %>%
+    #slice(1:300) %>%
+    ggplot(., aes(x=n, y=reorder(LANP_label, n), fill=ENG_label))+
+              geom_bar(stat='identity', position = "stack")+
+              theme_minimal()+
+              labs(x = "Number of Speakers",
+                   y = "Language",
+                   title = "Languages Spoken at Home by English Speaking Ability and Age",
+                   subtitle = "English and Spanish removed. Speakers age 5 and over in the US",
+                   caption = "ACS PUMS Microdata. US Census Bureau. 2021.")+ 
+              scale_x_continuous(labels = label_comma())+
+              scale_y_discrete(label = wrap_format(20))+
+              scale_fill_brewer(palette = "PRGn", name = "Ability to Speak English")+
+              facet_wrap(vars(AgeGroup), scales = "free")+
+              theme(legend.position = "top",
+                    axis.text.y = element_text(size = 4),
+                    axis.text.x = element_text(angle = 45))
+
+
+```
+
+
+```{r detailed plot individual, eval=FALSE, include=FALSE, out.width='90%'}
+
+lang_totals_noSpan <- filter(lang_totals_indiv, LANP_label != "Spanish")
+
+ lang_totals_noSpan %>% 
+    arrange(desc(n)) %>%
+    #slice(1:300) %>%
+    ggplot(., aes(x=n, y=reorder(LANP_label, n), fill=ENG_label))+
+              geom_bar(stat='identity', position = "stack")+
+              theme_minimal()+
+              labs(x = "Number of Speakers",
+                   y = "Language",
+                   title = "Individual Languages Spoken at Home by English Speaking Ability and Age",
+                   subtitle = "English and Spanish removed. Speakers age 5 and over in the US",
+                   caption = "ACS PUMS Microdata. US Census Bureau. 2021.")+ 
+              scale_x_continuous(labels = label_comma())+
+              scale_y_discrete(label = wrap_format(20))+
+              scale_fill_brewer(palette = "PRGn", name = "Ability to Speak English")+
+              facet_wrap(vars(AgeGroup), scales = "free")+
+              theme(legend.position = "top",
+                    axis.text.y = element_text(size = 4),
+                    axis.text.x = element_text(angle = 45))
+
+
+```
+
+
+```{r detailed plot grouped, eval=FALSE, include=FALSE, out.width='90%'}
+
+lang_totals_noSpan <- filter(lang_totals_other, LANP_label != "Spanish")
+
+ lang_totals_noSpan %>% 
+    arrange(desc(n)) %>%
+    #slice(1:300) %>%
+    ggplot(., aes(x=n, y=reorder(LANP_label, n), fill=ENG_label))+
+              geom_bar(stat='identity', position = "stack")+
+              theme_minimal()+
+              labs(x = "Number of Speakers",
+                   y = "Language",
+                   title = "Grouped Language Categories Spoken at Home by English Speaking Ability and Age",
+                   subtitle = "English and Spanish removed. Speakers age 5 and over in the US",
+                   caption = "ACS PUMS Microdata. US Census Bureau. 2021.")+ 
+              scale_x_continuous(labels = label_comma())+
+              scale_y_discrete(label = wrap_format(20))+
+              scale_fill_brewer(palette = "PRGn", name = "Ability to Speak English")+
+              facet_wrap(vars(AgeGroup), scales = "free")+
+              theme(legend.position = "top",
+                    axis.text.y = element_text(size = 4),
+                    axis.text.x = element_text(angle = 45))
+
+
+```
