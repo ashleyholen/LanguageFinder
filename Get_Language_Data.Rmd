@@ -1,6 +1,6 @@
 ---
 title: "Get Data on Languages Spoken in the US"
-author: Catherine Brockway, PhD; UN CIFAL Honolulu; catherine.lee.brockway@gmail.com
+author: Catherine Brockway, PhD; UN CIFAL Honolulu; catherine.lee.brockway@gmail.com;Epifania Petelo
 date: "`r Sys.Date()`"
 output: 
   html_document:
