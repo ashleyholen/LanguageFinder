@@ -55,7 +55,7 @@ n = colDef(name = "Number of Speakers")
 )
 ```
 
-```{r subset data, eval=FALSE, include=FALSE}
+```{r remove english data, eval=FALSE, include=FALSE}
 lang_nonEng <- lang_pums %>%
   filter(LANP != "000N")%>%
   select(PWGTP, AGEP, ST_label, ENG_label, LANP_label)
@@ -82,7 +82,7 @@ totals_HI_puma <- lang_puma_hawaii %>%
   arrange(desc(n))
 ```
 
-```{r subset data, eval=FALSE, include=FALSE}
+```{r subset HI data, eval=FALSE, include=FALSE}
 lang_nonEng_HI <- lang_puma_hawaii %>%
   filter(LANP != "000N")%>%
   select(PWGTP, AGEP, PUMA, ENG_label, LANP_label)
@@ -94,12 +94,13 @@ write.csv(lang_nonEng_HI, "NonEnglishLanguagesHI.csv")
 hi_pumas <- map("HI", tigris::pumas, class = "sf", cb = TRUE, year = 2020) %>% 
   reduce(rbind)
 ```
+
 ```{r}
 hi_map <- lang_puma_hawaii %>%
   group_by(PUMA) %>%
   summarize(
     total_pop = sum(PWGTP),
-    pct_in_pov = sum(PWGTP[LANP != "000N"]) / total_pop
+    pct_non_eng = sum(PWGTP[LANP != "000N"]) / total_pop
   )
 ```
 
@@ -109,7 +110,7 @@ hi_map <- lang_puma_hawaii %>%
 
 hi_pumas %>%
   left_join(hi_map, by = c('PUMACE20' = 'PUMA')) %>%
-  ggplot(aes(fill = pct_in_pov)) +
+  ggplot(aes(fill = pct_non_eng)) +
   geom_sf() +
   scale_fill_viridis_b(
     name = NULL,
@@ -121,7 +122,7 @@ hi_pumas %>%
    #geom_sf_text_repel(aes(label = PUMACE20)) +
     ggrepel::geom_text_repel(
     #data = PUMACE20,
-    aes(label = PUMACE20, geometry = geometry),
+    aes(label = NAMELSAD20, geometry = geometry),
     stat = "sf_coordinates",
     min.segment.length = 0,
     colour = "darkgray",
@@ -149,7 +150,7 @@ totals_TX_puma <- lang_puma_texas %>%
   arrange(desc(n))
 ```
 
-```{r subset data, eval=FALSE, include=FALSE}
+```{r subset TX data, eval=FALSE, include=FALSE}
 lang_nonEng_TX <- lang_puma_texas %>%
   filter(LANP != "000N")%>%
   select(PWGTP, AGEP, PUMA, ENG_label, LANP_label)

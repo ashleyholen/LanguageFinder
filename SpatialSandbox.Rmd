@@ -110,5 +110,31 @@ tm_shape(not_english_county) +
             legend.outside = TRUE)
 ```
 
+```{r}
+#View(pums_variables)
+reactable(
+pums_variables,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE
+)
+```
 
+
+```{r}
+
+hi_pumas %>%
+  left_join(hi_map, by = c('PUMACE20' = 'PUMA')) %>%
+  tm_shape() + 
+    tm_polygons(col = "pct_non_eng",
+          style = "fisher",
+          n = 5,
+          palette = "Purples",
+          title = "2022 US Census",
+          legend.hist = TRUE) + 
+  tm_layout(title = "Percent Speaking \nLanguage Other Than English \nby County",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
 
