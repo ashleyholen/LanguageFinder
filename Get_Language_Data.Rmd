@@ -26,9 +26,9 @@ Sys.getenv("CENSUS_API_KEY")
 ```{r get data, eval=FALSE, include=FALSE}
 lang_pums <- get_pums(
   variables = c("LANP", "AGEP", "ENG"),
-  state = "all",
+  state = "TX",
   survey = "acs5",
-  year = 2021,
+  year = 2022,
   recode = TRUE
 )
 

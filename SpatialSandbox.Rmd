@@ -138,3 +138,7 @@ hi_pumas %>%
             legend.outside = TRUE)
 ```
 
+```{r}
+view(pums_variables)
+```
+

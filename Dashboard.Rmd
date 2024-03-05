@@ -15,6 +15,28 @@ library(tigris)
 library(leaflet)
 library(sf)
 library(shiny)
+library(tidycensus)
+```
+
+
+```{r get data}
+
+lang_pums <- get_pums(
+  variables = c("PUMA", "LANP"),
+  state = "TX",
+  survey = "acs5",
+  year = 2021,
+  recode = TRUE)
+
+summary(lang_pums)
+
+```
+
+```{r pumas}
+tx_pumas <- pumas(state = "TX", cb = TRUE, year = 2020)
+ggplot(tx_pumas) + 
+  geom_sf() + 
+  theme_void()
 ```
 
 
