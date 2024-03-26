@@ -68,7 +68,7 @@ pageButtonActiveStyle = list(backgroundColor = "hsl(0, 0%, 100%)")
 
 
 ```{r}
-nonEng <- read.csv("NonEnglishLanguages.csv")
+nonEng <- read.csv("NonEnglishLanguages2022.csv")
 
 nonEng$ST_label <- as.factor(nonEng$ST_label)
 nonEng$ENG_label <- as.factor(nonEng$ENG_label)
@@ -311,6 +311,7 @@ fullWidth = FALSE,
 groupBy = c("LANP_label", "PUMA", "AgeGroup"),
 columns = list(
 LANP_label = colDef(name = "Language"),
+PUMA = colDef(filterable = TRUE),
 ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
 AgeGroup = colDef(name = "Age Group", filterable = TRUE),
 #ST_label = colDef(name = "State", filterable = TRUE),
@@ -358,6 +359,7 @@ fullWidth = FALSE,
 groupBy = c("LANP_label", "PUMA", "AgeGroup"),
 columns = list(
 LANP_label = colDef(name = "Language"),
+PUMA = colDef(filterable = TRUE),
 ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
 AgeGroup = colDef(name = "Age Group", filterable = TRUE),
 #ST_label = colDef(name = "State", filterable = TRUE),

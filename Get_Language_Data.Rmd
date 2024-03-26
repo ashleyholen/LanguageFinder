@@ -26,7 +26,7 @@ Sys.getenv("CENSUS_API_KEY")
 ```{r get data, eval=FALSE, include=FALSE}
 lang_pums <- get_pums(
   variables = c("LANP", "AGEP", "ENG"),
-  state = "TX",
+  state = "all",
   survey = "acs5",
   year = 2022,
   recode = TRUE
@@ -187,11 +187,11 @@ tx_pumas %>%
    #geom_sf_text_repel(aes(label = PUMACE20)) +
     ggrepel::geom_text_repel(
     #data = PUMACE20,
-    aes(label = PUMACE20, geometry = geometry),
+    aes(label = NAMELSAD20, geometry = geometry),
     stat = "sf_coordinates",
     min.segment.length = 0,
     colour = "darkgray",
-    max.overlaps = 20
+    max.overlaps = 100
   )+
   theme_void()
 ```
