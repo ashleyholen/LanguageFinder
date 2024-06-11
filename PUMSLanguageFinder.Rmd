@@ -70,7 +70,7 @@ Where Ability to Speak English is given, this data is self-reported in part C of
 
 # State Level Language Data
 
-```{r get US data, include=FALSE}
+```{r get US data, eval=FALSE, include=FALSE}
 lang_pums_us <- get_pums(
   variables = c("LANP", "AGEP", "ENG"),
   state = "all",
@@ -81,7 +81,7 @@ lang_pums_us <- get_pums(
 
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 nonEng_us <- lang_pums_us %>%
   filter(LANP != "000N")%>%
   select(PWGTP, AGEP, ST_label, ENG_label, LANP_label)
@@ -107,9 +107,9 @@ totals_us <- nonEng_us%>%
 ```
 
 
-```{r reactable US languages}
+```{r reactable US languages, eval=FALSE, include=FALSE}
 reactable(
-totals_us,
+totals,
 searchable = TRUE,
 showPageSizeOptions = TRUE,
 striped = TRUE,
@@ -133,7 +133,7 @@ Visit this interactive map tool to find the PUMA(s) you want to look at: [PUMA 2
 
 
 # Texas
-```{r get data, eval=FALSE, include=FALSE}
+```{r get data, include=FALSE}
 st <- "TX"
 
 lang_pums <- get_pums(
@@ -179,8 +179,8 @@ striped = TRUE,
 highlight = TRUE,
 fullWidth = FALSE,
 columns = list(
-LANP_label = colDef(name = "Language", filterable = TRUE),
 PUMA20 = colDef(name = "PUMA", filterable = TRUE),
+LANP_label = colDef(name = "Language", filterable = TRUE),
 ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
 AgeGroup = colDef(name = "Age Group", filterable = TRUE),
 n = colDef(name = "Number of Speakers", aggregate = "sum")
@@ -189,4 +189,59 @@ n = colDef(name = "Number of Speakers", aggregate = "sum")
 
 ```
 
+# Hawaiʻi
+```{r get data, include=FALSE}
+st <- "HI"
 
+lang_pums <- get_pums(
+  variables = c("PUMA20", "LANP", "AGEP", "ENG"),
+  state = st,
+  survey = "acs5",
+  year = 2022,
+  recode = TRUE
+)
+
+nonEng <- lang_pums %>%
+  filter(LANP != "000N")%>%
+  select(PWGTP, AGEP, PUMA20, ENG_label, LANP_label)
+
+
+nonEng$ENG_label <- as.factor(nonEng$ENG_label)
+nonEng$ENG_label <- factor(nonEng$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng$LANP_label <- as.factor(nonEng$LANP_label)
+
+nonEng <- within(nonEng, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng$AgeGroup <- as.factor(nonEng$AgeGroup)
+nonEng$AgeGroup <- factor(nonEng$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+
+lang_totals <- nonEng %>%
+  count(LANP_label, ENG_label, AgeGroup, PUMA20, wt = PWGTP)%>%
+  arrange(desc(n))
+```
+
+```{r reactable HI languages}
+
+reactable(
+lang_totals,
+groupBy = c("PUMA20", "LANP_label", "ENG_label"),
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+columns = list(
+PUMA20 = colDef(name = "PUMA", filterable = TRUE),
+LANP_label = colDef(name = "Language", filterable = TRUE),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+n = colDef(name = "Number of Speakers", aggregate = "sum")
+)
+)
+
+```

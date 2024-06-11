@@ -69,7 +69,7 @@ server <- function(input, output, session) {
                   fillOpacity = 0.5, 
                   color = "white", 
                   weight = 1,
-                  layerId = ~GEOID) %>%
+                  layerId = ~GEOID20) %>%
       setView(lng = -99.5, lat = 31.5, zoom = 6)
   })
   
@@ -79,7 +79,7 @@ server <- function(input, output, session) {
       return(NULL)
     
     puma_id <- event$id
-    puma_data <- pumas[pumas$GEOID == puma_id, ]
+    puma_data <- pumas[pumas$GEOID20 == puma_id, ]
     
     # Here you can replace this with your data retrieval code based on the selected PUMA ID
     # For demonstration purposes, I'm just displaying the data associated with the selected PUMA

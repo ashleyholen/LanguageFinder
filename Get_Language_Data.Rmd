@@ -19,11 +19,14 @@ library(tidycensus)
 library(kableExtra)
 library(tigris)
 options(tigris_use_cache = TRUE)
+library(reactable)
 #set your census api key using instructions at https://walker-data.com/tidycensus/reference/census_api_key.html
 Sys.getenv("CENSUS_API_KEY")
 ```
 
 ```{r get data, eval=FALSE, include=FALSE}
+# This code chunk pulls the state level data using the Census API in the tidycensus package.
+
 lang_pums <- get_pums(
   variables = c("LANP", "AGEP", "ENG"),
   state = "all",
@@ -33,17 +36,23 @@ lang_pums <- get_pums(
 )
 
 summary(lang_pums)
+
+#This dataframe should include 15721123 obs of 11 variables.
 ```
 
-```{r}
-totals <- lang_pums %>%
+```{r US totals}
+# This applies the person weight function and gives total number of speakers for each language with all states combined.
+us_totals <- lang_pums %>%
   count(LANP_label, wt = PWGTP)%>%
   arrange(desc(n))
+
+# 129 obs of 2 variables.
 ```
 
 ```{r reactable US languages}
+# Creates a table of language totals for the whole US.
 reactable(
-totals,
+us_totals,
 searchable = TRUE,
 showPageSizeOptions = TRUE,
 striped = TRUE,
@@ -53,13 +62,15 @@ LANP_label = colDef(name = "Language"),
 n = colDef(name = "Number of Speakers")
 )
 )
+
+#First row should have blank for language and 263034420 for number of speakers (these are the people who speak English at home). Spanish should have 41472790, Thai should have 169461, Other Bantu languages should have 80265.
 ```
 
 ```{r remove english data, eval=FALSE, include=FALSE}
 lang_nonEng <- lang_pums %>%
   filter(LANP != "000N")%>%
   select(PWGTP, AGEP, ST_label, ENG_label, LANP_label)
-write.csv(lang_nonEng, "NonEnglishLanguages2022.csv")
+#write.csv(lang_nonEng, "NonEnglishLanguages2022.csv")
 
 ```
 
@@ -194,4 +205,18 @@ tx_pumas %>%
     max.overlaps = 100
   )+
   theme_void()
+```
+
+
+```{r get data county, eval=FALSE, include=FALSE}
+lang_county <- get_acs(
+  variables = c("LANP", "AGEP", "ENG"),
+  geography = "county",
+  state = "TX",
+  survey = "acs5",
+  year = 2022,
+  recode = TRUE
+)
+
+summary(lang_county)
 ```
