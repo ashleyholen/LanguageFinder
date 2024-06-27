@@ -153,8 +153,16 @@ lang_totals <- nonEng %>%
   count(LANP_label, ENG_label, AgeGroup, ST_label, wt = PWGTP)%>%
   arrange(desc(n))
 
-#write_csv(lang_totals, "LangAppData.csv")
+write_csv(lang_totals, "LangAppData.csv")
 ```
+
+# State Data for App Development
+```{r load csv with all variables}
+
+lang_totals <- read.csv("LangAppData.csv")
+
+```
+
 
 ```{r reactable all languages}
 reactable(
