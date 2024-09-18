@@ -101,7 +101,10 @@ server <- function(input, output, session) {
         ST_label = colDef(name = "State", filterable = TRUE),
         n = colDef(name = "Number of Speakers", aggregate = "sum")
       ),
-      elementId = "languageTable"  # Important for JavaScript interaction
+      elementId = "languageTable",
+      defaultColDef = colDef(
+    format = colFormat(separators = TRUE)
+  )# Important for JavaScript interaction
     )
   })
   
