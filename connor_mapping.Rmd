@@ -1,0 +1,203 @@
+---
+title: "Mapping"
+author: "Connor Flynn"
+date: "7/30/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(shiny)
+library(leaflet)
+library(sf)
+library(urbnmapr)
+library(ggiraph)
+options(scipen = 99)
+```
+
+```{r}
+lang_data <- read_csv(here("LangAppData.csv"))
+```
+
+
+
+```{r}
+library(dplyr)
+
+lang_data_all_state <- lang_data %>%
+  group_by(ST_label, LANP_label) %>%  # Group by state and language
+  summarise(total_speakers = sum(n)) %>%  # Sum the speakers for each language within a state
+  mutate(percent_speakers = (total_speakers / sum(total_speakers)) * 100)  # Calculate the percentage
+
+# View the result
+lang_data_all_state
+
+```
+```{r}
+# Modify the ST_label to remove the state abbreviations
+lang_data_all_state <- lang_data_all_state %>%
+  mutate(ST_label = sub("/.*", "", ST_label))  # Remove anything after the '/'
+
+```
+
+
+```{r}
+# UI
+ui <- fluidPage(
+  titlePanel("Language Speakers by State"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("selected_language", "Choose a Language:", 
+                  choices = unique(lang_data_all_state$LANP_label))
+    ),
+    
+    mainPanel(
+      ggiraphOutput("languageMap")
+    )
+  )
+)
+
+# Server
+server <- function(input, output) {
+  
+  output$languageMap <- renderggiraph({
+    # Filter data based on selected language
+    filtered_data <- lang_data_all_state %>%
+      filter(LANP_label == input$selected_language)
+    
+    # Join with urbnmapr data for state boundaries
+    map_data <- left_join(get_urbn_map(map = "states"), filtered_data, by = c("state_name" = "ST_label"))
+    
+    # Create the map
+    gg <- ggplot(map_data, aes(x = long, y = lat, group = group, fill = percent_speakers)) +
+      geom_polygon_interactive(aes(tooltip = paste(state_name, "\n", round(percent_speakers, 8), "%")), 
+                               color = "white") +
+      scale_fill_viridis_c(option = "D", na.value = "grey90") +
+      theme_minimal() +
+      labs(fill = "% Speakers", title = paste("Percentage of", input$selected_language, "Speakers by State"))
+    
+    ggiraph(code = print(gg))
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# Define the UI
+ui <- fluidPage(
+  titlePanel("Language Data Visualization"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("selected_language", "Select Language:", choices = unique(lang_data$LANP_label))
+    ),
+    mainPanel(
+      plotOutput("lang_plot")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  filtered_data <- reactive({
+    lang_data %>% 
+      filter(LANP_label == input$selected_language)
+  })
+  
+  output$lang_plot <- renderPlot({
+    ggplot(filtered_data(), aes(x = ST_label, y = n, fill = AgeGroup)) +
+      geom_bar(stat = "identity", position = "stack") +
+      labs(title = paste("Age Group Distribution by State for", input$selected_language),
+           x = "State",
+           y = "Count") +
+      theme_minimal() +
+      facet_wrap(~ ENG_label, nrow = 1) +
+      coord_flip()  # Horizontal orientation
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+```
+
+
+```{r}
+# Define the UI
+ui <- fluidPage(
+  titlePanel("Language Data Visualization"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("selected_language", "Select Language:", choices = unique(lang_data$LANP_label))
+    ),
+    mainPanel(
+      plotOutput("lang_plot"),
+      plotOutput("lang_map")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  filtered_data <- reactive({
+    lang_data %>% 
+      filter(LANP_label == input$selected_language)
+  })
+  
+  output$lang_plot <- renderPlot({
+    ggplot(filtered_data(), aes(x = ST_label, y = n, fill = AgeGroup)) +
+      geom_bar(stat = "identity", position = "stack") +
+      labs(title = paste("Age Group Distribution by State for", input$selected_language),
+           x = "State",
+           y = "Count") +
+      theme_minimal() +
+      facet_wrap(~ ENG_label, nrow=1) +
+      coord_flip()  # Horizontal orientation
+  })
+  
+  output$lang_map <- renderPlot({
+    states <- get_urbn_map(map = "states", sf = TRUE)
+    state_abbr <- get_urbn_labels(map = "states") %>%
+      rename(ST_label = state_name)
+    
+    filtered_states <- filtered_data() %>%
+      group_by(ST_label, ENG_label) %>%
+      summarize(n = sum(n), .groups = "drop") %>%
+      left_join(state_abbr, by = "ST_label") %>%
+      left_join(states, by = c("ST_label" = "state_name"))
+    
+    ggplot(filtered_states) +
+      geom_sf(data = states, fill = "white", color = "grey") +
+      geom_sf(aes(geometry = geometry, fill = n), color = "white") +
+      facet_wrap(~ ENG_label) +
+      scale_fill_viridis_c() +
+      labs(title = paste("Map of", input$selected_language, "speakers by English Proficiency"),
+           fill = "Count") +
+      theme_minimal()
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+```
+
