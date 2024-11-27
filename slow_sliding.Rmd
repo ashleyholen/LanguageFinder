@@ -1,0 +1,250 @@
+---
+title: "Slow Sliding"
+author: "Connor Flynn"
+date: "2024-11-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(shiny)
+library(tidyverse)
+library(here)
+library(tigris)
+library(tidycensus)
+library(mapview)
+library(sf)
+
+```
+
+```{r}
+
+# Load data
+lang_data <- read_csv(here("LangAppData.csv")) %>%
+  mutate(ST_label = sub("/.*", "", ST_label))  # Modify ST_label
+
+# Group and calculate percentages
+lang_data_all_state <- lang_data %>%
+  group_by(LANP_label, ST_label) %>%
+  summarise(total_speakers = sum(n)) %>%
+  group_by(LANP_label) %>%
+  mutate(percent_speakers = (total_speakers / sum(total_speakers)) * 100)
+
+# Load state geometries
+states_sf <- states(cb = TRUE)
+
+# Join spatial and language data
+lang_data_all_state <- lang_data_all_state %>%
+  rename(NAME = ST_label)
+
+joined_data <- states_sf %>%
+  left_join(lang_data_all_state, by = "NAME")
+
+# Get state populations
+state_pops <- get_estimates(geography = "state", product = "population",
+                            geometry = TRUE, year = 2022) %>%
+  filter(variable == "POPESTIMATE")
+
+lang_data <- lang_data %>%
+  rename(NAME = ST_label)
+
+# Join with population data
+lang_data_state_pops <- full_join(lang_data, state_pops, by = "NAME")
+
+# Calculate speakers per state
+lang_data_by_state <- lang_data_state_pops %>%
+  group_by(LANP_label, NAME, value, geometry) %>%
+  summarise(total_speakers = sum(n) / value) %>%
+  distinct()
+
+```
+
+
+```{r}
+# Shiny app
+ui <- fluidPage(
+  titlePanel("Dynamic Language Mapping"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("language", "Select a Language:", 
+                  choices = unique(lang_data$LANP_label), 
+                  selected = "Spanish")
+    ),
+    mainPanel(
+      leafletOutput("combined_map")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  reactive_data <- reactive({
+    selected_language <- input$language
+
+    map1_data <- joined_data %>% filter(LANP_label == selected_language)
+    map2_data <- lang_data_by_state %>% filter(LANP_label == selected_language) %>% st_as_sf()
+
+    map1 <- mapview(map1_data, zcol = "percent_speakers",
+                    layer.name = "Percentage of Speakers",
+                    col.regions = RColorBrewer::brewer.pal(9, "Blues"),
+                    na.color = "grey")
+    
+    map2 <- mapview(map2_data, zcol = "total_speakers",
+                    layer.name = "Speakers per Capita",
+                    col.regions = RColorBrewer::brewer.pal(9, "Greens"),
+                    na.color = "grey")
+    
+    map1 | map2
+  })
+  
+  output$combined_map <- renderLeaflet({
+    reactive_data()@map
+  })
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+
+Improving Speed
+
+```{r}
+library(shiny)
+library(tidyverse)
+library(here)
+library(tigris)
+library(tidycensus)
+library(mapview)
+library(sf)
+library(rmapshaper)  # For geometry simplification
+library(leaflet)
+# Function to dynamically generate color palettes
+generate_palette <- function(n, palette_name = "Blues") {
+  colorRampPalette(RColorBrewer::brewer.pal(9, palette_name))(n)
+}
+
+# Load and preprocess data
+lang_data <- read_csv(here("LangAppData.csv")) %>%
+  mutate(ST_label = sub("/.*", "", ST_label))
+
+# Group and calculate percentages
+lang_data_all_state <- lang_data %>%
+  group_by(LANP_label, ST_label) %>%
+  summarise(total_speakers = sum(n), .groups = "drop") %>%
+  group_by(LANP_label) %>%
+ mutate(percent_speakers = round((total_speakers / sum(total_speakers)) * 100, 0))
+
+
+# Load and simplify state geometries
+states_sf <- states(cb = TRUE) %>%
+  ms_simplify(keep = 0.05)  # Simplify geometries to 5% of points
+
+# Join spatial and language data
+lang_data_all_state <- lang_data_all_state %>%
+  rename(NAME = ST_label)
+
+joined_data <- states_sf %>%
+  left_join(lang_data_all_state, by = "NAME")
+
+# Get state populations with simplified geometry
+state_pops <- get_estimates(geography = "state", product = "population",
+                            geometry = TRUE, vintage = 2022) %>%
+  filter(variable == "POPESTIMATE") %>%
+  ms_simplify(keep = 0.05)
+
+lang_data <- lang_data %>%
+  rename(NAME = ST_label)
+
+# Join with population data
+lang_data_state_pops <- full_join(lang_data, state_pops, by = "NAME")
+
+# Calculate speakers per state
+lang_data_by_state <- lang_data_state_pops %>%
+  group_by(LANP_label, NAME, value, geometry) %>%
+  summarise(total_speakers_per_100k = round((sum(n) / value) * 100000, 0)) %>%
+  st_as_sf()
+
+# Shiny app
+ui <- fluidPage(
+  titlePanel("Dynamic Language Mapping"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("language", "Select a Language:", 
+                  choices = unique(lang_data$LANP_label), 
+                  selected = "Spanish")
+    ),
+    mainPanel(
+      leafletOutput("combined_map")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  reactive_data <- reactive({
+    selected_language <- input$language
+
+    # Filter for selected language
+    map1_data <- joined_data %>% filter(LANP_label == selected_language) 
+    map1_data <- map1_data %>%
+  mutate(percent_speakers_tooltip = paste0(percent_speakers, "%"))
+    map1_data <- map1_data %>%
+  mutate(
+    percent_speakers_formatted = paste0(percent_speakers, "%")  # Add % for hover
+  )
+    map1_data <- map1_data %>%
+  mutate(
+    percent_speakers_label = paste0(percent_speakers, "%")  # Formatted for hover
+  )
+    
+    
+    map2_data <- lang_data_by_state %>% filter(LANP_label == selected_language)
+    map2_data <- map2_data %>%
+  mutate(total_speakers_per_100k_tooltip = paste0(total_speakers_per_100k, " 👤"))
+    map2_data <- map2_data %>%
+  mutate(
+    total_speakers_per_100k_formatted = paste0(total_speakers_per_100k, " 👤")  # Add emoji for hover
+  )
+    map2_data <- map2_data %>%
+  mutate(
+    total_speakers_per_100k_label = paste0(total_speakers_per_100k, " per 100,000 👤")  # Formatted for hover
+  )
+
+    # Render maps with simplified data
+map1 <- mapview(
+  map1_data,
+  zcol = "percent_speakers",  # Numeric column for color mapping
+  layer.name = "Percentage of Language Speakers<br>Living in State",
+  col.regions = generate_palette(9, "Blues"),
+  na.color = "grey",
+  label = map1_data$percent_speakers_label,  # Hover tooltip with %
+  popup = paste0("Percentage of Speakers: ", map1_data$percent_speakers_label)  # Click popup with %
+)
+
+
+
+
+
+map2 <- mapview(
+  map2_data,
+  zcol = "total_speakers_per_100k",  # Numeric column for color mapping
+  layer.name = "Speakers per 100,000 Population",
+  col.regions = generate_palette(9, "Greens"),
+  na.color = "grey",
+  label = map2_data$total_speakers_per_100k_label,  # Hover tooltip with 👤
+  popup = paste0("Speakers: ", map2_data$total_speakers_per_100k_label)  # Click popup with 👤
+)
+
+
+
+    map1 | map2
+  })
+
+  output$combined_map <- renderLeaflet({
+    reactive_data()@map
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+
+```
+
