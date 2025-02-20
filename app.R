@@ -44,7 +44,7 @@ joined_data <- states_sf %>%
 #   ms_simplify(keep = 0.05)
 
 # Get state populations
-
+state_pops <- st_read(here("state_pops.gpkg"))
 
 lang_data <- lang_data %>%
   rename(NAME = ST_label)
