@@ -6,6 +6,7 @@ library(tigris)
 library(tidycensus)
 library(mapgl)
 library(shiny)
+library(sf)
 
 # Read in Data
 
