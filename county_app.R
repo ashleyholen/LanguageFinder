@@ -4,6 +4,7 @@ library(here)
 library(sf)
 library(reactable)
 library(viridis)
+library(tidyverse)
 
 # Load Data
 county_data <- st_read(here("data/county_data.gpkg"))
@@ -29,7 +30,7 @@ ui <- fluidPage(
         "language_choice", 
         "Choose a Language:", 
         choices = available_languages, 
-        selected = "Spanish"
+        selected = "Hawaiian"
       ),
       
       div(
