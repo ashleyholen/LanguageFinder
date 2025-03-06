@@ -56,7 +56,7 @@ ui <- fluidPage(
           <h3>About the Data</h3>
           <p>The data comes from the <a href='https://www.census.gov/' target='_blank'>US Census Bureau</a> 
           <a href='https://www.census.gov/programs-surveys/acs' target='_blank'>American Community Survey</a>, 
-          5-year estimates from 2017-2021. This is the most reliable and most recent data available on languages spoken at home in the US. 
+          5-year estimates from 2019-2023. This is the most reliable and most recent data available on languages spoken at home in the US. 
           This data is collected using the following questions:</p>
           
           <img src='language_600_q14.avif' width='50%' alt='Language Spoken at Home question on the American Community Survey'>
