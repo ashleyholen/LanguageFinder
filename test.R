@@ -4,6 +4,8 @@ library(here)
 library(sf)
 library(reactable)  # Added for interactive table
 library(viridis)
+library(tidyverse)
+
 # Load Data
 county_data <- st_read(here("data/county_data.gpkg"))
 tract_data <- st_read(here("data/tract_data.gpkg"))
