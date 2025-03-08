@@ -119,7 +119,8 @@ server <- function(input, output, session) {
         ),
         fill_opacity = 0.7,
         min_zoom = 8,
-        tooltip = "percent_speakers"
+        tooltip = "percent_speakers",
+        popup = "geoname"
       ) |>
       add_fill_layer(
         id = "county-fill-layer",
@@ -133,7 +134,8 @@ server <- function(input, output, session) {
         ),
         fill_opacity = 0.7,
         max_zoom = 7.99,
-        tooltip = "percent_speakers"
+        tooltip = "percent_speakers",
+        popup = "geoname"
       ) |>
       add_continuous_legend(
         "Percent of Population Speaking Language",
