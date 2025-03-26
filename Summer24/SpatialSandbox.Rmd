@@ -1,0 +1,144 @@
+---
+title: "Spatial Analysis Sandbox"
+author: Catherine Brockway, PhD; UN CIFAL Honolulu; catherine.lee.brockway@gmail.com
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+
+
+```{r setup}
+library(tidycensus)
+# census_api_key("YOUR KEY GOES HERE", install = TRUE)
+library(reactable)
+library(tigris)
+options(tigris_use_cache = TRUE)
+library(ggplot2)
+library(tmap)
+tmap_mode("view")
+library(mapview)
+```
+
+```{r}
+total_population_10 <- get_decennial(
+  geography = "state", 
+  variables = "P001001",
+  year = 2010
+)
+
+reactable(
+total_population_10,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE
+)
+```
+
+```{r}
+total_population_10_as <- get_decennial(
+  geography = "state", 
+  variables = "P001001",
+  year = 2010,
+  sumfile = "as"
+)
+
+total_population_10_mp <- get_decennial(
+  geography = "state", 
+  variables = "P001001",
+  year = 2010,
+  sumfile = "mp"
+)
+
+total_population_10_gu <- get_decennial(
+  geography = "state", 
+  variables = "P001001",
+  year = 2010,
+  sumfile = "gu"
+)
+
+total_pop_10 <- rbind(total_population_10, total_population_10_as, total_population_10_gu, total_population_10_mp)
+
+reactable(
+total_pop_10,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE
+)
+```
+
+```{r}
+acs_2022_variables <- load_variables(2022, "acs5/profile")
+reactable(acs_2022_variables, filterable = TRUE, showPageSizeOptions = TRUE, minRows = 10)
+```
+
+```{r}
+not_english_county <- get_acs(
+  geography = "county",
+  variables = "DP02_0113",
+  year = 2022,
+  geometry = TRUE
+)%>%
+  shift_geometry()
+
+
+plot(not_english_county["estimate"])
+```
+
+```{r}
+ggplot(data = not_english_county, aes(fill = estimate)) + 
+  geom_sf() + 
+  scale_fill_distiller(palette = "RdPu", 
+                       direction = 1) + 
+  labs(title = "Estimated Number of People Speaking \n Language Other Than English at Home, 2022",
+       caption = "Data source: 2022 5-year ACS, US Census Bureau",
+       fill = "ACS estimate") + 
+  theme_void()
+```
+
+```{r}
+tm_shape(not_english_county) + 
+    tm_polygons(col = "estimate",
+          style = "fisher",
+          n = 5,
+          palette = "Purples",
+          title = "2022 US Census",
+          legend.hist = TRUE) + 
+  tm_layout(title = "Percent Speaking \nLanguage Other Than English \nby County",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
+
+```{r}
+#View(pums_variables)
+reactable(
+pums_variables,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE
+)
+```
+
+
+```{r}
+
+hi_pumas %>%
+  left_join(hi_map, by = c('PUMACE20' = 'PUMA')) %>%
+  tm_shape() + 
+    tm_polygons(col = "pct_non_eng",
+          style = "fisher",
+          n = 5,
+          palette = "Purples",
+          title = "2022 US Census",
+          legend.hist = TRUE) + 
+  tm_layout(title = "Percent Speaking \nLanguage Other Than English \nby County",
+            frame = FALSE,
+            legend.outside = TRUE)
+```
+
+```{r}
+view(pums_variables)
+```
+

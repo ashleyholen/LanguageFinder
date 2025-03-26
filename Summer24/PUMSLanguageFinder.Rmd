@@ -1,0 +1,247 @@
+---
+title: "PUMSLanguageFinder"
+author: Catherine Brockway, PhD; UN CIFAL Honolulu; catherine.lee.brockway@gmail.com;Epifania Petelo
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_download: TRUE
+    theme: sandstone
+    toc: TRUE
+    toc_float: TRUE
+    code_folding: hide
+---
+
+```{r env setup, include=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(kableExtra)
+library(reactable)
+# https://glin.github.io/reactable/articles/examples.html#basic-usage 
+library(scales)
+library(rmdformats)
+Sys.getenv("CENSUS_API_KEY")
+
+options(reactable.theme = reactableTheme(
+color = "hsl(100, 0%, 0%)",
+backgroundColor = "hsl(0, 0%, 100%)",
+borderColor = "hsl(233, 9%, 22%)",
+stripedColor = "hsl(240, 3%, 94%)",
+highlightColor = "hsl(95, 80%, 70%)",
+inputStyle = list(backgroundColor = "hsl(0, 0%, 100%)"),
+selectStyle = list(backgroundColor = "hsl(0, 0%, 100%)"),
+pageButtonHoverStyle = list(backgroundColor = "hsl(0, 0%, 100%)"),
+pageButtonActiveStyle = list(backgroundColor = "hsl(0, 0%, 100%)")
+))
+#set your census api key using instructions at https://walker-data.com/tidycensus/reference/census_api_key.html
+
+```
+
+
+Find out which languages other than English are spoken in particular places.
+Translations and interpretation services are key tools to increase accessibility to information. Access to information is especially important in relation to:
+
+1) Disaster warnings and disaster response;
+2) Healthcare, especially treatment options and recovery instructions;
+3) Local government engagement;
+4) Environmental justice; 
+5) Workplace safety
+
+See how many people speak a particular language in different places.
+
+1) Understanding how speakers of a certain language are distributed across the U.S. can help organizations find collaborative partners in creating translations and interpretive services for that language.
+
+2) Organizations that serve particular language communities can use this information to identify key service areas.
+
+This project seeks to make data about languages spoken in the US accessible to decision-makers in social sector enterprises. Key variables for decision-makers include the detailed language spoken, ability to speak English, and potentially age, for organizations that serve specific age groups, e.g.: voting age population, K-12 children, seniors, etc. 
+
+# About the data
+
+The data comes from the [US Census Bureau](https://www.census.gov/) [American Community Survey](https://www.census.gov/programs-surveys/acs), 5-year estimates from 2017-2021. This is the most reliable and most recent data available on languages spoken at home in the US. This data is collected using the following questions:
+
+![Image of Language Spoken at Home question on the American Community Survey](language_600_q14.avif){width=50%}
+
+$~$
+
+The US Census Bureau reports 130 language categories, including 105 individual languages (e.g.: Spanish, Hawaiian) and 25 aggregated language categories (e.g. Other Malayo-Polynesian languages, Aleut languages. 
+
+Where age information is given, ages were divided into three categories: Youth (age 5-17), Working Age (18-64), and Senior (65-99). Data for individuals under age 5 and above age 99 are not provided by the US Census Bureau. 
+
+Where Ability to Speak English is given, this data is self-reported in part C of the question shown above.
+
+# State Level Language Data
+
+```{r get US data, eval=FALSE, include=FALSE}
+lang_pums_us <- get_pums(
+  variables = c("LANP", "AGEP", "ENG"),
+  state = "all",
+  survey = "acs5",
+  year = 2022,
+  recode = TRUE
+)
+
+```
+
+```{r eval=FALSE, include=FALSE}
+nonEng_us <- lang_pums_us %>%
+  filter(LANP != "000N")%>%
+  select(PWGTP, AGEP, ST_label, ENG_label, LANP_label)
+
+nonEng_us$ST_label <- as.factor(nonEng_us$ST_label)
+nonEng_us$ENG_label <- as.factor(nonEng_us$ENG_label)
+nonEng_us$ENG_label <- factor(nonEng_us$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng_us$LANP_label <- as.factor(nonEng_us$LANP_label)
+
+nonEng_us <- within(nonEng_us, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng_us$AgeGroup <- as.factor(nonEng_us$AgeGroup)
+nonEng_us$AgeGroup <- factor(nonEng_us$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+
+totals_us <- nonEng_us%>%
+  count(LANP_label, wt = PWGTP)%>%
+  arrange(desc(n))
+```
+
+
+```{r reactable US languages, eval=FALSE, include=FALSE}
+reactable(
+totals,
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+columns = list(
+LANP_label = colDef(name = "Language"),
+n = colDef(name = "Number of Speakers")
+)
+)
+```
+
+
+# Languages in Public Use Microdata Areas
+
+If you work within a smaller geography than a state, you can use the tables below to find data for [Public Use Microdata Areas](https://www.census.gov/programs-surveys/geography/guidance/geo-areas/pumas.html), or PUMAs, which are the smallest geography available for detailed language used at home. Each PUMA contains a population of at least 100,000 people. Follow the instructions below to find the PUMA that best fits your area of interest. 
+
+## Find your PUMA (Public Use Microdata Area)
+
+Visit this interactive map tool to find the PUMA(s) you want to look at: [PUMA 2020 Boundaries](https://www.arcgis.com/home/item.html?id=da5ec62f0b5d49a2aecaeb14d6940fe1). Click the blue button on the right side of the screen: "Open in Map Viewer". Zoom in to your area of interest and click on the area that most closely matches the geography you want to focus on. The 5 digit code next to "PUMA" is the code you will use in the tables below. "Name" is the name of the PUMA you can use in your reporting. 
+
+
+
+# Texas
+```{r get data, include=FALSE}
+st <- "TX"
+
+lang_pums <- get_pums(
+  variables = c("PUMA20", "LANP", "AGEP", "ENG"),
+  state = st,
+  survey = "acs5",
+  year = 2022,
+  recode = TRUE
+)
+
+nonEng <- lang_pums %>%
+  filter(LANP != "000N")%>%
+  select(PWGTP, AGEP, PUMA20, ENG_label, LANP_label)
+
+
+nonEng$ENG_label <- as.factor(nonEng$ENG_label)
+nonEng$ENG_label <- factor(nonEng$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng$LANP_label <- as.factor(nonEng$LANP_label)
+
+nonEng <- within(nonEng, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng$AgeGroup <- as.factor(nonEng$AgeGroup)
+nonEng$AgeGroup <- factor(nonEng$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+
+lang_totals <- nonEng %>%
+  count(LANP_label, ENG_label, AgeGroup, PUMA20, wt = PWGTP)%>%
+  arrange(desc(n))
+```
+
+```{r reactable TX languages}
+
+reactable(
+lang_totals,
+groupBy = c("LANP_label", "PUMA20", "AgeGroup"),
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+columns = list(
+PUMA20 = colDef(name = "PUMA", filterable = TRUE),
+LANP_label = colDef(name = "Language", filterable = TRUE),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+n = colDef(name = "Number of Speakers", aggregate = "sum")
+)
+)
+
+```
+
+# Hawaiʻi
+```{r get data, include=FALSE}
+st <- "HI"
+
+lang_pums <- get_pums(
+  variables = c("PUMA20", "LANP", "AGEP", "ENG"),
+  state = st,
+  survey = "acs5",
+  year = 2022,
+  recode = TRUE
+)
+
+nonEng <- lang_pums %>%
+  filter(LANP != "000N")%>%
+  select(PWGTP, AGEP, PUMA20, ENG_label, LANP_label)
+
+
+nonEng$ENG_label <- as.factor(nonEng$ENG_label)
+nonEng$ENG_label <- factor(nonEng$ENG_label, levels = c('Not at all', 'Not well', 'Well', 'Very well'))
+nonEng$LANP_label <- as.factor(nonEng$LANP_label)
+
+nonEng <- within(nonEng, {   
+  AgeGroup <- NA # need to initialize variable
+  AgeGroup[AGEP < 18] <- "Youth"
+  AgeGroup[AGEP >= 18 & AGEP < 65] <- "Adult"
+  AgeGroup[AGEP >= 65] <- "Senior"
+   } )
+
+nonEng$AgeGroup <- as.factor(nonEng$AgeGroup)
+nonEng$AgeGroup <- factor(nonEng$AgeGroup, levels = c('Youth', 'Adult', 'Senior'))
+
+lang_totals <- nonEng %>%
+  count(LANP_label, ENG_label, AgeGroup, PUMA20, wt = PWGTP)%>%
+  arrange(desc(n))
+```
+
+```{r reactable HI languages}
+
+reactable(
+lang_totals,
+groupBy = c("PUMA20", "LANP_label", "ENG_label"),
+searchable = TRUE,
+showPageSizeOptions = TRUE,
+striped = TRUE,
+highlight = TRUE,
+fullWidth = FALSE,
+columns = list(
+PUMA20 = colDef(name = "PUMA", filterable = TRUE),
+LANP_label = colDef(name = "Language", filterable = TRUE),
+ENG_label = colDef(name = "Ability to Speak English", filterable = TRUE),
+AgeGroup = colDef(name = "Age Group", filterable = TRUE),
+n = colDef(name = "Number of Speakers", aggregate = "sum")
+)
+)
+
+```
