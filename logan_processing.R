@@ -1,3 +1,16 @@
+# Hey Logan 👋
+# This is where you will process the main data (tract_level_19_23_data.feather, what we purchased from the census)
+# Note that in this script I take the totals of English Proficiency Level, practically ignoring the variable
+# tract_level_19_23_data <- tract_level_19_23_data %>% 
+# filter(age == "Total", ability_to_speak_english == "Total")
+
+# Edit this script below to process the data in a way that makes sense based on your chosen task: English Proficiency Level
+# At the end of the script if you unhashtag the st_write() function it will then make a gpkg file that you can read in and start mapping
+# Please name the gpkg something other than county_data.gpkg or tract_data.gpkg
+
+
+
+
 library(tidyverse)
 library(here)
 library(arrow)
@@ -88,7 +101,7 @@ county_data <- county_data %>%
 
 # Write as sf objects
 
-st_write(county_data, here("data/county_data.gpkg"), delete_layer = TRUE)
-st_write(tract_data, here("data/tract_data.gpkg"), delete_layer = TRUE)
+# st_write(county_data, here("data/place_name_here.gpkg"), delete_layer = TRUE)
+# st_write(tract_data, here("data/place_name_here.gpkg"), delete_layer = TRUE)
 
 
