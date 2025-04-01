@@ -7,11 +7,11 @@ library(viridis)
 library(reactable)
 
 # Load spatial data
-tract_data <- st_read(here("data/tract_data.gpkg"))
-county_data <- st_read(here("data/county_data.gpkg"))
+tract_age <- st_read(here("data/tract_age.gpkg"))
+county_age <- st_read(here("data/county_age.gpkg"))
 
 # Extract county + state from geoname
-tract_data <- tract_data %>%
+tract_age <- tract_age %>%
   mutate(
     county_name = str_extract(geoname, ";\\s[^;]+ County|Parish|Borough") %>%
       str_remove(";\\s") %>% str_trim(),
@@ -20,8 +20,9 @@ tract_data <- tract_data %>%
     county_label = paste(county_name, state_name, sep = ", ")
   )
 
-state_choices <- sort(unique(tract_data$state_name))
-available_languages <- sort(unique(tract_data$language))
+state_choices <- sort(unique(tract_age$state_name))
+available_languages <- sort(unique(tract_age$language))
+age_ranges <- sort(unique(tract_age$age))
 
 # UI
 ui <- navbarPage(
@@ -88,7 +89,7 @@ server <- function(input, output, session) {
   ### --- Geography Tab --- ###
   output$county_ui <- renderUI({
     req(input$state)
-    counties_in_state <- tract_data %>%
+    counties_in_state <- tract_age %>%
       filter(state_name == input$state) %>%
       distinct(county_label) %>%
       arrange(county_label)
@@ -108,7 +109,7 @@ server <- function(input, output, session) {
   
   sel_tracts <- reactive({
     req(input$county)
-    tract_data %>%
+    tract_age %>%
       filter(county_label == input$county) %>%
       filter(language != "Total", !is.na(language)) %>%
       group_by(GEOID) %>%
@@ -122,7 +123,7 @@ server <- function(input, output, session) {
   })
   
   on_section("map", "intro", {
-    maplibre_proxy("map") |> fit_bounds(county_data, animate = TRUE)
+    maplibre_proxy("map") |> fit_bounds(county_age, animate = TRUE)
   })
   
   on_section("map", "county", {
@@ -208,10 +209,23 @@ server <- function(input, output, session) {
       theme_minimal(base_size = 14)
   })
   
+  output$age_plot <- renderPlot({
+    sel_tracts() %>%
+      group_by(age) %>%
+      summarise(speakers = sum(speakers, na.rm = TRUE)) %>%
+      arrange(desc(speakers)) %>%
+      slice_head(n = 15) %>%
+      ggplot(aes(x = reorder(language, age, speakers), y = speakers)) +
+      geom_col(fill = "#3182bd") +
+      coord_flip() +
+      labs(x = NULL, y = "Speakers", title = "Top Languages by Age in Selected County") +
+      theme_minimal(base_size = 14)
+  })
+  
   ### --- Language Tab --- ###
   selected_data <- reactive({
-    tract_filtered <- tract_data %>% filter(language == input$language_choice)
-    county_filtered <- county_data %>% filter(language == input$language_choice)
+    tract_filtered <- tract_age %>% filter(language == input$language_choice)
+    county_filtered <- county_age %>% filter(language == input$language_choice)
     list(tract = tract_filtered, county = county_filtered)
   })
   
