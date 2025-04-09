@@ -32,16 +32,16 @@ tract_level_19_23_data$cest <- as.numeric(tract_level_19_23_data$cest)
 
 unique(tract_level_19_23_data$age)
 
-tract_level_19_23_data <- tract_level_19_23_data %>% 
-  filter(ability_to_speak_english == "Total")
+#tract_level_19_23_data <- tract_level_19_23_data %>% 
+  #filter(age == "5 to 17 years", ability_to_speak_english == "Total")
 
 tract_level_sums_per_language <- tract_level_19_23_data %>% 
-  group_by(geoname, language, age) %>% 
+  group_by(geoname, language, age, ability_to_speak_english) %>% 
   summarize(speakers = sum(cest, na.rm = TRUE))
 
 county_level_sums_per_language <- tract_level_sums_per_language %>% 
   mutate(geoname = stringr::str_extract(geoname, "(?<=, ).*")) %>%
-  group_by(geoname, language, age) %>%
+  group_by(geoname, language, age, ability_to_speak_english) %>%
   summarise(speakers = sum(speakers, na.rm = TRUE))
 
 
@@ -57,7 +57,7 @@ tract_pops <- get_acs(
 )
 
 tract_pops <- tract_pops %>% 
-  rename(geoname = "NAME")
+  rename(geoname = "NAME") 
 
 tract_level_sums_per_language <- tract_level_sums_per_language %>% 
   mutate(geoname = stringr::str_replace_all(geoname, ",", ";"))
@@ -101,7 +101,7 @@ county_data <- county_data %>%
 
 # Write as sf objects
 
-st_write(county_data, here("data/county_age.gpkg"), delete_layer = TRUE)
-st_write(tract_data, here("data/tract_age.gpkg"), delete_layer = TRUE)
+st_write(county_data, here("data/county_all.gpkg"), delete_layer = TRUE)
+st_write(tract_data, here("data/tract_all.gpkg"), delete_layer = TRUE)
 
 

@@ -7,11 +7,11 @@ library(viridis)
 library(reactable)
 
 # Load spatial data
-tract_age <- st_read(here("data/tract_age.gpkg"))
-county_age <- st_read(here("data/county_age.gpkg"))
+tract_all <- st_read(here("data/tract_all.gpkg"))
+county_all <- st_read(here("data/county_all.gpkg"))
 
 # Extract county + state from geoname
-tract_age <- tract_age %>%
+tract_all <- tract_all %>%
   mutate(
     county_name = str_extract(geoname, ";\\s[^;]+ County|Parish|Borough") %>%
       str_remove(";\\s") %>% str_trim(),
@@ -20,9 +20,9 @@ tract_age <- tract_age %>%
     county_label = paste(county_name, state_name, sep = ", ")
   )
 
-state_choices <- sort(unique(tract_age$state_name))
-available_languages <- sort(unique(tract_age$language))
-age_ranges <- sort(unique(tract_age$age))
+state_choices <- sort(unique(tract_all$state_name))
+available_languages <- sort(unique(tract_all$language))
+age_ranges <- sort(unique(tract_all$age))
 
 # UI
 ui <- navbarPage(
@@ -33,22 +33,34 @@ ui <- navbarPage(
   
   tabPanel("Search by Geography",
            fluidPage(
-             story_maplibre(
-               map_id = "map",
-               sections = list(
-                 "intro" = story_section(
-                   title = "Languages Spoken by County & Tract",
-                   content = list(
-                     selectInput("state", "Choose a State:", choices = state_choices, selected = "Hawaii"),
-                     uiOutput("county_ui"),
-                     p("Scroll down to zoom to the selected county and view language data by tract.")
-                   )
-                 ),
-                 "county" = story_section(
-                   title = NULL,
-                   content = list(
-                     uiOutput("county_title"),
-                     plotOutput("language_plot")
+             sidebarLayout(
+               sidebarPanel(
+                 selectInput("state", "Choose a State:", choices = state_choices, selected = "Hawaii"),
+                 uiOutput("county_ui"),
+                 
+                 # Add Age Dropdown with "Total" as prefilled option
+                 selectInput("age", "Select Age Group:", choices = c("Total", age_ranges), selected = "Total"),
+                 
+                 # Add English Proficiency Dropdown with "Total" as prefilled option
+                 selectInput("english_proficiency", "Select English Proficiency Level:", choices = c("Total", "Speak English 'very well'", "Speak English 'well'", "Speak English 'not well'", "Do not speak English"), selected = "Total")
+               ),
+               mainPanel(
+                 story_maplibre(
+                   map_id = "map",
+                   sections = list(
+                     "intro" = story_section(
+                       title = "Languages Spoken by County & Tract",
+                       content = list(
+                         p("Scroll down to zoom to the selected county and view language data by tract.")
+                       )
+                     ),
+                     "county" = story_section(
+                       title = NULL,
+                       content = list(
+                         uiOutput("county_title"),
+                         plotOutput("language_plot")
+                       )
+                     )
                    )
                  )
                )
@@ -62,15 +74,15 @@ ui <- navbarPage(
                sidebarPanel(
                  selectInput("language_choice", "Choose a Language:", choices = available_languages, selected = "Hawaiian"),
                  div(HTML("
-            <p><strong>Find out which languages other than English are spoken in particular places.</strong></p>
-            <ul>
-              <li>Disaster response, healthcare, and environmental justice</li>
-              <li>Engagement in local government</li>
-              <li>Workplace safety and more</li>
-            </ul>
-            <p>Explore how speakers of a language are distributed across the U.S.</p>
-            <p>Updated March 2025</p>
-          "))
+                   <p><strong>Find out which languages other than English are spoken in particular places.</strong></p>
+                   <ul>
+                     <li>Disaster response, healthcare, and environmental justice</li>
+                     <li>Engagement in local government</li>
+                     <li>Workplace safety and more</li>
+                   </ul>
+                   <p>Explore how speakers of a language are distributed across the U.S.</p>
+                   <p>Updated March 2025</p>
+                 "))
                ),
                mainPanel(
                  h3("Map of Locations where Selected Language is Spoken"),
@@ -84,12 +96,29 @@ ui <- navbarPage(
   )
 )
 
+
 # Server
 server <- function(input, output, session) {
   ### --- Geography Tab --- ###
+  
+  # Filter the data based on selected age and English proficiency level
+  sel_tracts <- reactive({
+    req(input$county)
+    tract_all %>%
+      filter(county_label == input$county) %>%
+      filter(language != "Total", !is.na(language)) %>%
+      # Filter by selected age and English proficiency
+      filter((input$age == "Total" | age == input$age)) %>%
+      filter((input$english_proficiency == "Total" | ability_to_speak_english == input$english_proficiency)) %>%
+      group_by(GEOID) %>%
+      slice_max(speakers, n = 1, with_ties = FALSE) %>%
+      ungroup() %>%
+      st_set_geometry("geom")
+  })
+  
   output$county_ui <- renderUI({
     req(input$state)
-    counties_in_state <- tract_age %>%
+    counties_in_state <- tract_all %>%
       filter(state_name == input$state) %>%
       distinct(county_label) %>%
       arrange(county_label)
@@ -106,24 +135,12 @@ server <- function(input, output, session) {
                 selected = default_county)
   })
   
-  
-  sel_tracts <- reactive({
-    req(input$county)
-    tract_age %>%
-      filter(county_label == input$county) %>%
-      filter(language != "Total", !is.na(language)) %>%
-      group_by(GEOID) %>%
-      slice_max(speakers, n = 1, with_ties = FALSE) %>%
-      ungroup() %>%
-      st_set_geometry("geom")
-  })
-  
   output$map <- renderMaplibre({
     maplibre(carto_style("positron"), scrollZoom = FALSE)
   })
   
   on_section("map", "intro", {
-    maplibre_proxy("map") |> fit_bounds(county_age, animate = TRUE)
+    maplibre_proxy("map") |> fit_bounds(county_all, animate = TRUE)
   })
   
   on_section("map", "county", {
@@ -190,7 +207,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
   output$county_title <- renderUI({
     req(input$county)
     h2(input$county)
@@ -208,24 +224,12 @@ server <- function(input, output, session) {
       labs(x = NULL, y = "Speakers", title = "Top Languages in Selected County") +
       theme_minimal(base_size = 14)
   })
-  
-  output$age_plot <- renderPlot({
-    sel_tracts() %>%
-      group_by(age) %>%
-      summarise(speakers = sum(speakers, na.rm = TRUE)) %>%
-      arrange(desc(speakers)) %>%
-      slice_head(n = 15) %>%
-      ggplot(aes(x = reorder(language, age, speakers), y = speakers)) +
-      geom_col(fill = "#3182bd") +
-      coord_flip() +
-      labs(x = NULL, y = "Speakers", title = "Top Languages by Age in Selected County") +
-      theme_minimal(base_size = 14)
-  })
+
   
   ### --- Language Tab --- ###
   selected_data <- reactive({
-    tract_filtered <- tract_age %>% filter(language == input$language_choice)
-    county_filtered <- county_age %>% filter(language == input$language_choice)
+    tract_filtered <- tract_all %>% filter(language == input$language_choice)
+    county_filtered <- county_all %>% filter(language == input$language_choice)
     list(tract = tract_filtered, county = county_filtered)
   })
   
