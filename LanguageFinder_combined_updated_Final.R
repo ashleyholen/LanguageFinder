@@ -8,7 +8,7 @@ library(viridis)
 library(reactable)
 library(plotly)
 library(querychat)
-library(arrow)
+library(arrow) 
 
 # Load spatial data
 tract_data <- st_read(here("data/tract_data.gpkg"))

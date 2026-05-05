@@ -19,4 +19,3 @@ querychat_app(combined_data, client = "openai/gpt-4.1")
 write_feather(combined_data, here("data/querychat_count_tract.feather"))
 
 feather_test <- read_feather(here("data/querychat_count_tract.feather"))
-
