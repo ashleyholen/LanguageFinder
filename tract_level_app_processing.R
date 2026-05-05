@@ -19,7 +19,7 @@ tract_level_19_23_data$cest <- as.numeric(tract_level_19_23_data$cest)
 
 
 tract_level_19_23_data <- tract_level_19_23_data %>% 
-  filter(age == "Total", ability_to_speak_english == "Total")
+  filter(age == "Total", ability_to_speak_english == "Total", language != "Total")
 
 
 tract_level_sums_per_language <- tract_level_19_23_data %>% 
@@ -29,6 +29,7 @@ tract_level_sums_per_language <- tract_level_19_23_data %>%
 county_level_sums_per_language <- tract_level_sums_per_language %>% 
   mutate(geoname = stringr::str_extract(geoname, "(?<=, ).*")) %>%
   group_by(geoname, language) %>%
+  #filter(language != "Total") %>% ???
   summarise(speakers = sum(speakers, na.rm = TRUE))
   
 
